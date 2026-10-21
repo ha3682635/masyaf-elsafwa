@@ -478,7 +478,7 @@ html.tt, html.tt * { transition: background-color .5s ease, color .5s ease, bord
         <div class="field full"><label for="bVilla">الفيلا</label><select id="bVilla" hidden></select><button type="button" class="dd-btn" id="ddBtn" aria-haspopup="listbox" aria-expanded="false" aria-label="اختار الفيلا"><img id="ddImg" alt=""><span class="dd-t" id="ddTxt"></span><svg class="dd-c" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd-list" id="ddList" role="listbox" hidden></div></div>
         <div class="field"><label for="bIn">تاريخ الوصول</label><input id="bIn" type="text" readonly placeholder="اختار التاريخ" autocomplete="off" data-dp></div>
         <div class="field"><label for="bOut">تاريخ المغادرة (أقل مدة 3 أيام)</label><input id="bOut" type="text" readonly placeholder="اختار التاريخ" autocomplete="off" data-dp></div>
-        <div class="field"><label for="bGuests">عدد الأفراد (الحد الأقصى 8)</label><input id="bGuests" type="number" min="1" max="8" inputmode="numeric" value="4"></div>
+        <div class="field"><label for="bGuests" id="bGuestsL">عدد الأفراد (الحد الأقصى 8)</label><input id="bGuests" type="number" min="1" max="8" inputmode="numeric" value="4"></div>
         <div class="field"><label for="bName">الاسم</label><input id="bName" type="text" autocomplete="name" placeholder="اسمك"></div>
         <p class="err" id="bErr" role="alert"></p>
         <button class="btn btn-wa" type="submit"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>ابعت طلب الحجز على واتساب</button>
@@ -527,7 +527,7 @@ var VILLAS = [
   { id: "v2", name: "فيلا 2", street: "شارع 8", tag: "حديقة وأرجوحة وتراس",
     desc: "فيلا مكيّفة بحديقة خاصة وأرجوحة، وتراس مبلّط بقعدة، رابع صف على البحر. مجهزة بكل الأجهزة المنزلية.",
     features: ["حديقة خاصة وأرجوحة", "تراس مبلّط بقعدة", "رابع صف على البحر", "تكييف", "واي فاي", "كل الأجهزة المنزلية", "مطبخ أمريكي", "ريسبشن"],
-    price: null, rooms: 2, baths: 2, guests: 8,
+    price: null, rooms: 2, baths: 2, guests: 6,
     imgs: [["v2_ext","الفيلا من الحديقة"],["v2_garden","الحديقة والأرجوحة"],["v2_patio","التراس"],["v2_living","الصالة"],["v2_living2","الصالة من زاوية ثانية"],["v2_dining","السفرة"],["v2_kitchen","المطبخ"],["v2_bed1","أوضة نوم"],["v2_bed2","أوضة نوم بسريرين"],["v2_bath2","الحمام"],["v2_bath1","حمام ثاني"],["v2_gate","المدخل ليلًا"]] }
 ];
 
@@ -761,7 +761,7 @@ $("#bookForm").addEventListener("submit", function (e) {
   if (Math.round((parse(b) - parse(a)) / 86400000) < MIN_N) { err.textContent = "أقل مدة حجز 3 أيام."; return; }
   if (!freeNights(v.id, a, Math.round((parse(b) - parse(a)) / 86400000))) { err.textContent = "الفترة دي فيها أيام محجوزة، اختار تواريخ تانية."; return; }
   if (!g || +g < 1) { err.textContent = "اكتب عدد الأفراد."; return; }
-  if (+g > 8) { err.textContent = "أقصى عدد في الشاليه الواحد 8 أفراد."; return; }
+  if (+g > v.guests) { err.textContent = "أقصى عدد في " + v.name + " " + v.guests + " أفراد."; return; }
   err.textContent = "";
   var nights = Math.round((new Date(b) - new Date(a)) / 86400000);
   var msg = "أهلاً، حابب أحجز " + v.name + " (" + v.street + "، قرية جامعة القاهرة)\nمن " + ar(a) + " إلى " + ar(b) + " (" + nights + " ليالي)\nعدد الأفراد: " + g + (n ? "\nالاسم: " + n : "") + "\n\nمتاحة؟ وإيه السعر؟";
@@ -769,6 +769,12 @@ $("#bookForm").addEventListener("submit", function (e) {
 });
 
 /* مواعيد الحجز من الجدول */
+function setGuestsMax() {
+  var v = VILLAS.filter(function (x) { return x.id === sel.value; })[0]; if (!v || !v.guests) return;
+  var gi = $("#bGuests"); gi.max = v.guests; $("#bGuestsL").textContent = "عدد الأفراد (الحد الأقصى " + v.guests + ")";
+  if (+gi.value > v.guests) gi.value = v.guests;
+}
+document.addEventListener("villachange", setGuestsMax); setGuestsMax();
 function villaChanged() {
   var a = $("#bIn"), b = $("#bOut"), vid = sel.value;
   if (a.dataset.iso && (occ(vid, a.dataset.iso) || !freeNights(vid, a.dataset.iso, MIN_N))) { a.dataset.iso = ""; a.value = ""; b.dataset.iso = ""; b.value = ""; }

@@ -290,6 +290,10 @@ html.tt, html.tt * { transition: background-color .5s ease, color .5s ease, bord
 .cal-g button:hover:not(:disabled) { background: #FFEFC7; }
 .cal-g button:disabled { color: #B8C8CF; cursor: not-allowed; }
 .cal-g button.rng { background: #DDF3FB; border-radius: 6px; }
+.cal-g button.bk { color: #8FA3AC; text-decoration: line-through; text-decoration-color: #E5502D; text-decoration-thickness: 2px; background: #FDEEE9; opacity: 1; }
+.cal-lg { display: flex; justify-content: center; gap: 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #E3EEF2; font: 600 13px var(--f-body); color: #6B8794; }
+.cal-lg span { display: inline-flex; align-items: center; gap: 6px; } .cal-lg i { font-style: normal; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; font-size: 12px; }
+.lg-f { background: #fff; box-shadow: inset 0 0 0 1.5px #D5E9F0; color: #0B3954; } .lg-b { background: #FDEEE9; color: #8FA3AC; text-decoration: line-through; text-decoration-color: #E5502D; text-decoration-thickness: 2px; }
 .cal-g button.sel { background: #0085B3; color: #fff; }
 .cal-g button.tod { box-shadow: inset 0 0 0 2px #FFB627; }
 .dd-btn { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 6px 8px 6px 14px; border: 2px solid transparent; border-radius: 14px; background: #fff; color: #0B3954; font: 700 16px var(--f-body); cursor: pointer; text-align: start; transition: border-color .2s, box-shadow .2s; }
@@ -594,7 +598,7 @@ list.addEventListener("click", function (e) {
 });
 $("#vdClose").onclick = closeDetail;
 vd.addEventListener("click", function (e) {
-  var p = e.target.closest("[data-pick]"); if (p) { $("#bVilla").value = p.dataset.pick; if (window.syncDd) syncDd(); lastCard = null; closeDetail(); }
+  var p = e.target.closest("[data-pick]"); if (p) { $("#bVilla").value = p.dataset.pick; if (window.syncDd) syncDd(); document.dispatchEvent(new Event("villachange")); lastCard = null; closeDetail(); }
 });
 
 /* lightbox */
@@ -675,6 +679,41 @@ function nd(n) { return String(n).replace(/\d/g, function (c) { return "٠١٢٣
 function parse(v) { var p = v.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
 var tIso = iso(today), cal = null, calFor = null, vy = 0, vm = 0;
 var MIN_N = 3;
+var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8fQpmiUAO5qXzQ0x4jEi45E7BZY4E7kGiih95ErqssrK7zB9SaPzlDw578uqUdzz4pOLa87_g92zp/pub?gid=0&single=true&output=csv";
+var BOOKED = {};
+function pad2(n) { n = +n; return (n < 10 ? "0" : "") + n; }
+function nIso(t) {
+  t = String(t || "").trim().replace(/^["']+|["']+$/g, ""); var m;
+  if ((m = t.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return m[1] + "-" + pad2(m[2]) + "-" + pad2(m[3]);
+  if ((m = t.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/))) { var x = +m[1], y = +m[2], d = x, mo = y; if (y > 12) { mo = x; d = y; } return m[3] + "-" + pad2(mo) + "-" + pad2(d); }
+  return "";
+}
+function csvRows(txt) {
+  var rows = [], row = [], cur = "", q = false;
+  for (var i = 0; i < txt.length; i++) {
+    var c = txt[i];
+    if (q) { if (c === '"') { if (txt[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && txt[i + 1] === "\n") i++; row.push(cur); cur = ""; rows.push(row); row = []; }
+    else cur += c;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+function loadBooked(txt) {
+  var out = {};
+  csvRows(txt).forEach(function (r) {
+    var v0 = String(r[0] || "").replace(/[٠-٩]/g, function (c) { return "٠١٢٣٤٥٦٧٨٩".indexOf(c); }), m = v0.match(/\d+/), all = /كل|all|\*/i.test(v0), a = nIso(r[1]), b = nIso(r[2]);
+    if ((!m && !all) || !a || !b || b <= a) return;
+    (all ? VILLAS.map(function (x) { return x.id; }) : ["v" + m[0]]).forEach(function (id) { (out[id] = out[id] || []).push([a, b]); });
+  });
+  BOOKED = out;
+}
+function addDays(id, n) { var d = parse(id); d.setDate(d.getDate() + n); return iso(d); }
+function occ(vid, id) { var l = BOOKED[vid]; if (!l) return false; for (var i = 0; i < l.length; i++) if (id >= l[i][0] && id < l[i][1]) return true; return false; }
+function freeNights(vid, a, n) { for (var i = 0; i < n; i++) if (occ(vid, addDays(a, i))) return false; return true; }
+function limitFor(vid, a) { for (var i = 0; i < 800; i++) { var d = addDays(a, i); if (occ(vid, d)) return d; } return ""; }
 function minOf(inp) { if (inp.id === "bOut" && $("#bIn").dataset.iso) { var d = parse($("#bIn").dataset.iso); d.setDate(d.getDate() + MIN_N); return iso(d); } return tIso; }
 function closeCal() { if (cal) { cal.remove(); cal = null; calFor = null; } }
 function drawCal(redraw) {
@@ -685,12 +724,16 @@ function drawCal(redraw) {
   for (var y = y0; y <= y0 + 3; y++) ys += '<option value="' + y + '"' + (y === vy ? " selected" : "") + ">" + nd(y) + "</option>";
   var g = ""; for (var e = 0; e < off; e++) g += "<span></span>";
   for (var d = 1; d <= days; d++) {
-    var id = iso(new Date(vy, vm, d)), c = [];
+    var id = iso(new Date(vy, vm, d)), c = [], dis = id < mn, vid = sel.value;
+    if (inp.id === "bIn") { if (occ(vid, id) || !freeNights(vid, id, MIN_N)) dis = true; }
+    else if (a) { var lim = limitFor(vid, a); if (lim && id > lim) dis = true; }
+    else if (occ(vid, id)) dis = true;
     if (id === cur) c.push("sel"); else if (a && b && id > a && id < b) c.push("rng");
     if (id === tIso) c.push("tod");
-    g += '<button type="button" data-d="' + id + '" class="' + c.join(" ") + '"' + (id < mn ? " disabled" : "") + ">" + nd(d) + "</button>";
+    if (dis && occ(vid, id)) c.push("bk");
+    g += '<button type="button" data-d="' + id + '" class="' + c.join(" ") + '"' + (dis ? " disabled" : "") + ">" + nd(d) + "</button>";
   }
-  cal.innerHTML = '<div class="cal-h"><button type="button" data-nav="-1" aria-label="الشهر السابق">' + ARR_R + '</button><select data-m aria-label="الشهر">' + ms + '</select><select data-y aria-label="السنة">' + ys + '</select><button type="button" data-nav="1" aria-label="الشهر التالي">' + ARR_L + '</button></div><div class="cal-w">' + AR_D.map(function (x) { return "<span>" + x + "</span>"; }).join("") + '</div><div class="cal-g' + (redraw ? " swap2" : "") + '">' + g + "</div>";
+  cal.innerHTML = '<div class="cal-h"><button type="button" data-nav="-1" aria-label="الشهر السابق">' + ARR_R + '</button><select data-m aria-label="الشهر">' + ms + '</select><select data-y aria-label="السنة">' + ys + '</select><button type="button" data-nav="1" aria-label="الشهر التالي">' + ARR_L + '</button></div><div class="cal-w">' + AR_D.map(function (x) { return "<span>" + x + "</span>"; }).join("") + '</div><div class="cal-g' + (redraw ? " swap2" : "") + '">' + g + "</div>" + (BOOKED[sel.value] && BOOKED[sel.value].length ? '<div class="cal-lg"><span><i class="lg-f">١</i>متاح</span><span><i class="lg-b">١</i>محجوز</span></div>' : "");
 }
 function openCal(inp) {
   if (calFor === inp) return; closeCal();
@@ -716,6 +759,7 @@ $("#bookForm").addEventListener("submit", function (e) {
   if (!a || !b) { err.textContent = "اختار تاريخ الوصول وتاريخ المغادرة."; return; }
   if (b <= a) { err.textContent = "تاريخ المغادرة لازم يكون بعد تاريخ الوصول."; return; }
   if (Math.round((parse(b) - parse(a)) / 86400000) < MIN_N) { err.textContent = "أقل مدة حجز 3 أيام."; return; }
+  if (!freeNights(v.id, a, Math.round((parse(b) - parse(a)) / 86400000))) { err.textContent = "الفترة دي فيها أيام محجوزة، اختار تواريخ تانية."; return; }
   if (!g || +g < 1) { err.textContent = "اكتب عدد الأفراد."; return; }
   if (+g > 8) { err.textContent = "أقصى عدد في الشاليه الواحد 8 أفراد."; return; }
   err.textContent = "";
@@ -723,6 +767,18 @@ $("#bookForm").addEventListener("submit", function (e) {
   var msg = "أهلاً، حابب أحجز " + v.name + " (" + v.street + "، قرية جامعة القاهرة)\nمن " + ar(a) + " إلى " + ar(b) + " (" + nights + " ليالي)\nعدد الأفراد: " + g + (n ? "\nالاسم: " + n : "") + "\n\nمتاحة؟ وإيه السعر؟";
   var l = document.createElement("a"); l.href = wa(msg); l.target = "_blank"; l.rel = "noopener"; document.body.appendChild(l); l.click(); l.remove();
 });
+
+/* مواعيد الحجز من الجدول */
+function villaChanged() {
+  var a = $("#bIn"), b = $("#bOut"), vid = sel.value;
+  if (a.dataset.iso && (occ(vid, a.dataset.iso) || !freeNights(vid, a.dataset.iso, MIN_N))) { a.dataset.iso = ""; a.value = ""; b.dataset.iso = ""; b.value = ""; }
+  else if (a.dataset.iso && b.dataset.iso && !freeNights(vid, a.dataset.iso, Math.round((parse(b.dataset.iso) - parse(a.dataset.iso)) / 86400000))) { b.dataset.iso = ""; b.value = ""; }
+  if (cal) drawCal(true);
+}
+document.addEventListener("villachange", villaChanged);
+if (CSV_URL && /^https?:$/.test(location.protocol) && window.fetch) {
+  fetch(CSV_URL, { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : Promise.reject(); }).then(function (t) { loadBooked(t); villaChanged(); }).catch(function () {});
+}
 
 /* theme toggle */
 (function () {
@@ -766,7 +822,7 @@ $("#bookForm").addEventListener("submit", function (e) {
   function show() { open = true; list.classList.remove("out"); list.hidden = false; btn.setAttribute("aria-expanded", "true"); }
   function hide() { if (!open) return; open = false; btn.setAttribute("aria-expanded", "false"); list.classList.add("out"); setTimeout(function () { if (!open) list.hidden = true; }, 160); }
   btn.addEventListener("click", function () { open ? hide() : show(); });
-  list.addEventListener("click", function (e) { var o = e.target.closest(".dd-o"); if (o) { sel.value = o.dataset.v; sync(); hide(); } });
+  list.addEventListener("click", function (e) { var o = e.target.closest(".dd-o"); if (o) { sel.value = o.dataset.v; sync(); hide(); document.dispatchEvent(new Event("villachange")); } });
   document.addEventListener("click", function (e) { if (open && !e.target.closest("#ddList") && !e.target.closest("#ddBtn")) hide(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
   sync();
